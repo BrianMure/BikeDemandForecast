@@ -12,6 +12,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import GridSearchCV
 from src.utils import save_object
 
 @dataclass
@@ -64,6 +65,36 @@ class ModelTrainer:
             logging.error("Error occurred during model evaluation")
             raise CustomException(e, sys)
 
+    def hyperparameter_tuning(self, X_train, y_train, method='grid'):
+        logging.info("Starting hyperparameter tuning")
+
+        try:
+            param_grid = {
+                'n_estimators': [50, 100, 200],
+                'max_depth': [None, 10, 20, 30],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4],
+                'bootstrap': [True, False]
+            }
+
+            if method == 'grid':
+                search = GridSearchCV(estimator=RandomForestRegressor(random_state=42),
+                param_grid=param_grid,
+                cv=5,
+                n_jobs=-1,
+                verbose=2,
+                scoring='neg_mean_squared_error')
+            else:
+                raise ValueError("Wrong hyperparameter tuning method")
+
+            search.fit(X_train, y_train)
+            logging.info(f"Best hyperparameters found: {search.best_params_}")
+
+            return search.best_estimator_
+        except Exception as e:
+            logging.error("Error occurred during hyperparameter tuning")
+            raise CustomException(e, sys)
+
 
 if __name__ == "__main__":
     from src.components.data_transformation import DataTransformation
@@ -76,17 +107,15 @@ if __name__ == "__main__":
 
     model_trainer = ModelTrainer()
 
-    # Train KMeans model
+    #train the model
     kmeans_model = model_trainer.train_kmeans(X_train)
 
-    # Use KMeans clusters as an additional feature in the Random Forest model
+    #use the clusters we created as a feature
     X_train['cluster'] = kmeans_model.labels_
     X_test['cluster'] = kmeans_model.predict(X_test)
 
-    # Train Random Forest model
-    rf_model = model_trainer.train_random_forest(X_train, y_train)
-
-    # Evaluate the Random Forest model
-    mse, r2 = model_trainer.evaluate_model(rf_model, X_test, y_train[:len(X_test)])  # Adjust y_test to match X_test size
+    #tuning using grid search
+    best_rf_model = model_trainer.hyperparameter_tuning(X_train, y_train, method='grid')
+    mse, r2 = model_trainer.evaluate_model(best_rf_model, X_test, y_train[:len(X_test)])
 
     logging.info(f"Final Model Performance: MSE = {mse}, R2 Score = {r2}")
