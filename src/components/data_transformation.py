@@ -17,7 +17,7 @@ class DataTransformation:
     def __init__(self):
         self.transformation_config = DataTransformationConfig()
 
-    def initiate_data_transformation(self, train_path, test_path):
+    def initiate_data_transformation(self, train_data_path, test_data_path):
         logging.info("Starting data transformation process")
 
         try:
